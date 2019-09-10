@@ -6,12 +6,14 @@ import androidx.lifecycle.ViewModel
 import com.vitor.cursojetpack.model.Dog
 import com.vitor.cursojetpack.model.DogDatabase
 import com.vitor.cursojetpack.service.DogsService
+import com.vitor.cursojetpack.util.NotificationsHelper
 import com.vitor.cursojetpack.util.SharedPreferencesHelper
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.observers.DisposableSingleObserver
 import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.launch
+import java.lang.NumberFormatException
 
 class ListViewModel(application: Application): BaseViewModel(application) {
 
@@ -26,12 +28,24 @@ class ListViewModel(application: Application): BaseViewModel(application) {
     val loading = MutableLiveData<Boolean>()
 
     fun refresh(){
+        checkCacheDuration()
         val updateTime = prefHelper.getUpdateTime()
 
         if(updateTime != null && updateTime != 0L && System.nanoTime() - updateTime < refreshTime){
             fetchFromDatabase()
         }else {
             fetchFromRemote()
+        }
+    }
+
+    private fun checkCacheDuration(){
+        val cachePreference = prefHelper.getCacheDuration()
+
+        try{
+            val cachePreferenceInt = cachePreference?.toInt() ?: 5 * 60
+            refreshTime = cachePreferenceInt.times(1000 * 1000 * 1000L)
+        }catch (e: NumberFormatException){
+            e.printStackTrace()
         }
     }
 
@@ -55,6 +69,7 @@ class ListViewModel(application: Application): BaseViewModel(application) {
                 .subscribeWith(object: DisposableSingleObserver<List<Dog>>(){
                     override fun onSuccess(dogList: List<Dog>) {
                         storeDogsLocally(dogList)
+                        NotificationsHelper(getApplication()).createNotification()
                     }
 
                     override fun onError(e: Throwable) {
