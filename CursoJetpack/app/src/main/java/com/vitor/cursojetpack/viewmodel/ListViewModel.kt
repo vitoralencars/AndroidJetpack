@@ -62,6 +62,7 @@ class ListViewModel(application: Application): BaseViewModel(application) {
     }
 
     private fun fetchFromRemote(){
+        loading.value = true
         disposable.add(
             dogsService.getDogs()
                 .subscribeOn(Schedulers.io())
